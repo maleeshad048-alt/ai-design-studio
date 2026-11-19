@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Graphic Design Studio</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; max-width: 900px; margin: auto; padding: 20px; }
+    h1 { text-align: center; color: #00d2ff; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; }
+    h3 { margin-top: 0; color: #ff9f43; }
+    input, select, button, textarea { width: 100%; margin-top: 10px; padding: 10px; border-radius: 6px; border: none; box-sizing: border-box; font-family: inherit; }
+    input, select, textarea { background: #2c2c2c; color: #fff; border: 1px solid #444; }
+    button { background: #00d2ff; color: #000; font-weight: bold; cursor: pointer; margin-top: 12px; }
+    button:hover { background: #00a8cc; }
+    img { max-width: 100%; margin-top: 12px; border-radius: 8px; border: 1px solid #444; }
+    .output { margin-top: 12px; font-size: 14px; white-space: pre-wrap; background: #2a2a2a; padding: 10px; border-radius: 6px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+  <h1>🎨 AI Graphic Design Studio</h1>
+
+  <div class="grid">
+    <!-- 1. File Format Converter -->
+    <div class="card">
+      <h3>1. File Format Converter</h3>
+      <input type="file" id="convFile" accept="image/*">
+      <select id="convFormat">
+        <option value="image/png">PNG බවට</option>
+        <option value="image/jpeg">JPG බවට</option>
+        <option value="image/webp">WEBP බවට</option>
+      </select>
+      <button onclick="convertImage()">Convert & Download</button>
+    </div>
+
+    <!-- 2. Background Remover -->
+    <div class="card">
+      <h3>2. Background Remover</h3>
+      <input type="file" id="bgFile" accept="image/*">
+      <button onclick="processBgRemoval()">පසුබිම ඉවත් කරන්න</button>
+      <div id="bgStatus" class="output" style="display:none;"></div>
+      <img id="bgResult" style="display:none;">
+    </div>
+
+    <!-- 3. Font Identifier -->
+    <div class="card">
+      <h3>3. Font Identifier (AI)</h3>
+      <input type="file" id="fontFile" accept="image/*">
+      <button onclick="identifyFont()">Font එක හඳුනාගන්න</button>
+      <div id="fontResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- 4. AI Image Generator -->
+    <div class="card">
+      <h3>4. AI Image Generator</h3>
+      <textarea id="imgPrompt" rows="2" placeholder="නිර්මාණය කිරීමට අවශ්‍ය පින්තූරය සිංහලෙන් හෝ ඉංග්‍රීසියෙන් විස්තර කරන්න..."></textarea>
+      <select id="aspectRatio">
+        <option value="1024x1024">Square (1:1)</option>
+        <option value="1280x720">Landscape (16:9)</option>
+        <option value="720x1280">Portrait / Story (9:16)</option>
+      </select>
+      <button onclick="generateImage()">පින්තූරය සාදන්න</button>
+      <div id="genStatus" class="output" style="display:none;"></div>
+      <img id="genResult" style="display:none;">
+    </div>
+  </div>
+
+  <script type="module">
+    import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.4.5';
+
+    // 1. Format Converter Logic
+    window.convertImage = function() {
+      const file = document.getElementById('convFile').files[0];
+      const format = document.getElementById('convFormat').value;
+      if (!file) return alert('කරුණාකර පින්තූරයක් තෝරන්න!');
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          
+          const ext = format.split('/')[1];
+          const link = document.createElement('a');
+          link.download = `converted.${ext}`;
+          link.href = canvas.toDataURL(format, 0.92);
+          link.click();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    // 2. Background Removal Logic
+    window.processBgRemoval = async function() {
+      const file = document.getElementById('bgFile').files[0];
+      const status = document.getElementById('bgStatus');
+      const resultImg = document.getElementById('bgResult');
+      if (!file) return alert('කරුණාකර පින්තූරයක් තෝරන්න!');
+
+      status.style.display = 'block';
+      resultImg.style.display = 'none';
+      status.innerText = 'AI මගින් පසුබිම ඉවත් කරමින් පවතී (පළමු වරට තත්පර 15-20ක් ගතවිය හැක)...';
+
+      try {
+        const blob = await removeBackground(file);
+        const url = URL.createObjectURL(blob);
+        resultImg.src = url;
+        resultImg.style.display = 'block';
+        status.innerText = 'සාර්ථකයි! පින්තූරය මත Right-click කර "Save image as" මගින් බාගත කරගන්න.';
+      } catch (err) {
+        status.innerText = 'දෝෂයක් ඇති විය: ' + err.message;
+      }
+    };
+
+    // 3. Font Identifier Logic
+    window.identifyFont = async function() {
+      const file = document.getElementById('fontFile').files[0];
+      const resultDiv = document.getElementById('fontResult');
+      if (!file) return alert('කරුණාකර පින්තූරයක් තෝරන්න!');
+
+      resultDiv.style.display = 'block';
+      resultDiv.innerText = 'Gemini AI මගින් Font විශ්ලේෂණය කරමින් පවතී...';
+
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const res = await fetch('/api/identify-font', { method: 'POST', body: formData });
+        const data = await res.json();
+        resultDiv.innerText = data.result || data.error;
+      } catch (err) {
+        resultDiv.innerText = 'සර්වර් සම්බන්ධතා දෝෂයකි: ' + err.message;
+      }
+    };
+
+    // 4. AI Image Generator Logic (සිංහල සහ ඉංග්‍රීසි දෙකටම වැඩ කරයි)
+    window.generateImage = async function() {
+      const prompt = document.getElementById('imgPrompt').value.trim();
+      const size = document.getElementById('aspectRatio').value.split('x');
+      const status = document.getElementById('genStatus');
+      const resultImg = document.getElementById('genResult');
+      if (!prompt) return alert('විස්තරයක් (Prompt) ඇතුළත් කරන්න!');
+
+      status.style.display = 'block';
+      resultImg.style.display = 'none';
+      status.innerText = 'AI පින්තූරය නිර්මාණය කරමින් පවතී...';
+
+      try {
+        const res = await fetch('/api/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        const finalPrompt = data.englishPrompt || prompt;
+
+        const seed = Math.floor(Math.random() * 100000);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${size[0]}&height=${size[1]}&seed=${seed}&nologo=true`;
+
+        resultImg.onload = () => {
+          resultImg.style.display = 'block';
+          status.style.display = 'none';
+        };
+        resultImg.onerror = () => {
+          status.innerText = 'පින්තූරය නිර්මාණය කිරීමට නොහැකි විය. නැවත උත්සාහ කරන්න.';
+        };
+        resultImg.src = imageUrl;
+      } catch (err) {
+        status.innerText = 'දෝෂයක් ඇති විය: ' + err.message;
+      }
+    };
+  </script>
+</body>
+</html>
